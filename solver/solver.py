@@ -29,7 +29,7 @@ class RMETC:
         
         Parameters
         ----------
-        d : int or boolean array, optional
+        d : int or array, optional
             If int, then the algorithm will use order 1,...,d. If array [d1, d2,...], then order d1, d2,... are used.
         tau : array, optional
             The weights on costs of different orders. If order k is not used, put 0 at tau[k-1]. 
@@ -651,7 +651,7 @@ class RMETC:
                            line_search_device = None, 
                            AA_depth = 0, AAtol = 1E-4,
                            monit = 0.1):
-        """Solve the mean and weights using ALS++, call get_soln() after this to extract solutions
+        """Solve the mean and weights using ALS++
 
         Parameters
         ----------
@@ -699,6 +699,9 @@ class RMETC:
 
         Returns
         -------
+        M : (n, r) array
+        w : (r,) array
+            Solved means and weights
         converged : bool
             True if the termination tolerance is met within maxiter iterations, False otherwise
         """
