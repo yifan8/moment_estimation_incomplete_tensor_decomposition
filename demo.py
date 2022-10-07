@@ -72,7 +72,7 @@ if test == 'gamma':
     V, Ns, w, A, std = sample_gamma(scale, shape, ws, p)
 
 
-# true second moment, moment generating function at 0.5, -0.6
+# true second moment, moment generating function at 0.5, -0.5
 # NOTE that mgf at 0.5 or -0.5 may NOT exist for distributions like Gamma. 
 # Thus the computed result is subject to a large error.
 # Here we use Gaussian distributions as an illustration for mgf calculation
@@ -110,8 +110,8 @@ def wt_scheduler(METC):
 def nb_scheduler(METC):
     return -1 if not METC.warmup else METC.n // 2
 
-def linsch(f, jac, x0, a, fx0 = None, dfx0 = None, amax = None):
-    soln = line_search(f, jac, x0, a, gfk = dfx0, old_fval = fx0, amax = amax)
+def linsch(f, jac, x0, a, amax, fx0 = None, dfx0 = None):
+    soln = line_search(f, jac, x0, a, amax, gfk = dfx0, old_fval = fx0)
     if soln[0] is None:
         return x0
     else:
@@ -131,9 +131,9 @@ maxiter = 200
 
 # solve mean and weights
 comp_A, comp_w, conv = \
-    solver.solveMeanAndWeight(V, A0, w0, maxiter, Atol, wtol, ftol, 
+    solver.solve_mean_weight(V, A0, w0, maxiter, Atol, wtol, ftol, 
                               translate_init = False, 
-                              warmup = 20, AAdepth = 15, 
+                              warmup = 20, AA_depth = 15, 
                               AAtol = 1E-4, monit = 1)
 
 

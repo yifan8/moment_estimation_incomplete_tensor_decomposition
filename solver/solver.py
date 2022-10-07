@@ -16,7 +16,7 @@ class RMETC:
     
     @staticmethod
     def _default_wlb_sched(METC):
-        return 1 / METC.r / (2 + METC.niter // 5)
+        return 0.1 / METC.r
     
     
     @staticmethod
@@ -121,21 +121,51 @@ class RMETC:
         self.n_deriv = 0
 
 
-    def set_optimizer(self, qp_solver = None, wt_lb_scheduler = None, line_search_device = None, AAdepth = 0, nb_scheduler = None):
-        """Set optimizers... add optimizer details
+    def set_optimizer(self, qp_solver = None, wt_lb_scheduler = None, line_search_device = None, nb_scheduler = None, AA_depth = 0):
+        """Set optimizers
 
         Parameters
         ----------
-        qp_solver : _type_, optional
-            _description_, by default None
-        wt_lb_scheduler : _type_, optional
-            _description_, by default None
-        line_search_device : _type_, optional
-            _description_, by default None
-        AAdepth : int, optional
-            _description_, by default 0
-        nb_scheduler : _type_, optional
-            _description_, by default None
+        qp_solver : Callable, optional
+            Solver that solves the quadratic programming problem for the weight update, the syntax is
+
+            >> x = qp_solver(b, W, lb)
+            
+            solves min ||x - b||_W, s.t. x >= lb, <x, 1> = 1
+            should return the solution, or None if solve fails.
+            By default None
+            
+        wt_lb_scheduler : Callable, optional
+            Assign a lower bound on the weights for current step, syntax 
+            
+            >> lb = wt_lb_scheduler(METC)
+            
+            returns the current weight lower bound (scalar). 
+            Can access METC.niter for the current iteration count, amoung others.
+            If None is given when weight update is called, will use the default one (= 0.1/r), by default None
+            
+        line_search_device : Callable, optional
+            The program that does line search in the AA step. If None is given when AA is called, no line search will be performed. Syntax
+            
+            >> x = line_search_device(f, df, x0, dx, amax, fx0 = OPTIONAL, dfx0 = OPTIONAL)
+            
+            f, df: Callable, the functions to evalate the cost f and gradient df
+            x0, dx: starting point and the search direction
+            amax: maximal search distance, i.e., will search on the segment [x0, x0 + amax * dx]
+            fx0, dfx0: Optional, the function and gradient value at x0, if not provided, will be recomputed.
+            By default None
+            
+        nb_scheduler : Callable, optional
+            Assign the number of blocks to be used in the mean update ALS, syntax 
+            
+            >> nb = nb_scheduler(METC)
+            
+            returns the requested number of blocks (scalar). 
+            Can access METC.niter and METC.warmup for the current iteration count and check if the program is in the warmup stage.
+            If None is given when mean update is called, will use the default one (block size = 1 at all time), by default None
+            
+        AA_depth : int, optional
+            The maximal history steps to be used in AA. If <= 0, AA will be ignored, by default 0
         """
         
         if qp_solver is not None:
@@ -147,7 +177,7 @@ class RMETC:
         if nb_scheduler is not None:
             self.nbsched = nb_scheduler
         
-        self.m = AAdepth
+        self.m = AA_depth
         self.AA = self.m > 0 
         
 
@@ -227,6 +257,7 @@ class RMETC:
         array
             The tau weights
         """
+        
         if d is None:
             d = self.maxd_to_use
         result = np.ones(d)
@@ -326,31 +357,29 @@ class RMETC:
         return deriv
         
     
-    def eval_deriv(self, M = None, w = None, follow_data_transform = False, return_all = False):
-        """compute derivatives...
+    def eval_deriv(self, M = None, w = None, follow_data_transform = False):
+        """compute derivatives at (M, w)
 
         Parameters
         ----------
-        M : _type_, optional
-            _description_, by default None
-        w : _type_, optional
-            _description_, by default None
+        M : (n, r) array, optional
+            The mean matrix, if None, use current mean, by default None
+        w : (r,) array, optional
+            The weight, if None, use current weight, by default None
         follow_data_transform : bool, optional
-            _description_, by default False
-        return_all : bool, optional
-            _description_, by default False
+            If True, and the data is regularized, the regularization translation will be applied to the input mean M, by default False
 
         Returns
         -------
-        _type_
-            _description_
+        dw : (r,) array
+        dM : (n, r) array
+            The derivative at (M, w)
         """
         
-        ret = self._eval_deriv_and_norm_eqn(M, w, follow_data_transform, return_all)
+        dM = self._eval_deriv_and_norm_eqn(M, w, follow_data_transform)
+        dw = 2 * (self.wLHS @ w - self.wRHS)
         self.n_deriv -= 1
-        if return_all:
-            return ret[0].reshape(self.n, self.r), ret[1]
-        return ret.reshape(self.n, self.r)
+        return dw, dM.reshape(self.n, self.r)
     
     
     def _eval_deriv_and_norm_eqn(self, M = None, w = None, follow_data_transform = False, return_all = False, get_one_drop = False):
@@ -435,21 +464,21 @@ class RMETC:
     
     
     def eval_cost(self, M = None, w = None, follow_data_transform = False):
-        """compute cost...
+        """compute cost at (M, w)
 
         Parameters
         ----------
-        M : _type_, optional
-            _description_, by default None
-        w : _type_, optional
-            _description_, by default None
+        M : (n, r) array, optional
+            The mean matrix, if None, use current mean, by default None
+        w : (r,) array, optional
+            The weight, if None, use current weight, by default None
         follow_data_transform : bool, optional
-            _description_, by default False
+            If True, and the data is regularized, the regularization translation will be applied to the input mean M, by default False
 
         Returns
         -------
-        _type_
-            _description_
+        cost : float
+            The cost value at (M, w)
         """
         
         ret = self._eval_cost_and_norm_eqn(M, w, follow_data_transform)
@@ -586,7 +615,7 @@ class RMETC:
                 bnds[dw >= 0] = 1  
                 # maximal step to stay in simplex
                 amax = np.min((bnds - neww) / dw)
-                x_opt = self.linsch(self._cost_helper, self._deriv_helper, newx, dx, fx0 = Mcost, dfx0 = newgrad, amax = amax)
+                x_opt = self.linsch(self._cost_helper, self._deriv_helper, newx, dx, amax, fx0 = Mcost, dfx0 = newgrad)
             result = x_opt[self.r:]
         
         self._update_AA_history(newgrad, newx)
@@ -611,62 +640,67 @@ class RMETC:
         self.dfhist[:, 0] = newgrad
     
 
-    def solveMeanAndWeight(self, V, init_M, init_w, maxiter, 
+    def solve_mean_weight(self, V, init_M, init_w, maxiter, 
                            Mtol = 1E-4, wtol = 1E-4, ftol = 1E-6,
-                           translate_init = True, regularize_data = True,
+                           translate_init = None, regularize_data = True,
                            update_weights = True,
                            warmup = 0, 
                            qp_solver = None, 
                            wt_lb_scheduler = None,
                            nb_scheduler = None,
-                           AAdepth = 0, AAtol = 1E-4,
                            line_search_device = None, 
+                           AA_depth = 0, AAtol = 1E-4,
                            monit = 0.1):
-        """_summary_
+        """Solve the mean and weights using ALS++, call get_soln() after this to extract solutions
 
         Parameters
         ----------
-        V : _type_
-            _description_
-        init_M : _type_
-            _description_
-        init_w : _type_
-            _description_
-        maxiter : _type_
-            _description_
-        Mtol : _type_, optional
-            _description_, by default 1E-4
-        wtol : _type_, optional
-            _description_, by default 1E-4
-        ftol : _type_, optional
-            _description_, by default 1E-6
-        translate_init : bool, optional
-            _description_, by default True
+        V : (n, p) array
+            The data matrix, comprised of column data vectors
+        init_M : (n, r) array
+            Initial guess of the mean matrix, comprised of columns of mean vectors
+        init_w : (r,) array
+            Initial guess of the weight
+        maxiter : int
+            Maximum number of iterations
+        Mtol : float, optional
+            Termination tolerance on relative stepsize on M (Frobenius norm), by default 1E-4
+        wtol : float, optional
+            Termination tolerance on relative stepsize on w (2 norm), by default 1E-4
+        ftol : float, optional
+            Termination tolerance on relative change in cost values, by default 1E-6
+        translate_init : str, optional
+            Whether the initial guess on mean should be translated
+            if 'center', then shift the means vectors to have a mean 0
+            if 'data', then the mean vectors will follow the same translation that regularizes the data (see regularize_data),
+            else no translation is made.
+            by default None
         regularize_data : bool, optional
-            _description_, by default True
+            If True, translate the data to mean 0 and row variance 1, by default True
         update_weights : bool, optional
-            _description_, by default True
+            If True, then the weights are updated to minimize costs, if False, the weights are fixed and not optimized, by default True
         warmup : int, optional
-            _description_, by default 0
-        qp_solver : _type_, optional
-            _description_, by default None
-        wt_lb_scheduler : _type_, optional
-            _description_, by default None
-        nb_scheduler : _type_, optional
-            _description_, by default None
-        AAdepth : int, optional
-            _description_, by default 0
-        AAtol : _type_, optional
-            _description_, by default 1E-4
-        line_search_device : _type_, optional
-            _description_, by default None
-        monit : float, optional
-            _description_, by default 0.1
+            Number of warmup iterations, by default 0
+        qp_solver : Callable, optional
+            See set_optimizer, by default None
+        wt_lb_scheduler : Callable, optional
+            See set_optimizer, by default None
+        nb_scheduler : Callable, optional
+            See set_optimizer, by default None
+        line_search_device : Callable, optional
+            See set_optimizer, by default None
+        AA_depth : int, optional
+            The maximal history size used in AA, if <= 0, AA is ignored, by default 0
+        AAtol : float, optional
+            The tolerance epsilon_{AA}, by default 1E-4
+        monit : float or int, optional
+            The frequency of printing the status. If int >= 1, then print the status every monit iterations. 
+            If float k in (0, 1), then print status every k * maxiter iterations, by default 0.1
 
         Returns
         -------
-        _type_
-            _description_
+        converged : bool
+            True if the termination tolerance is met within maxiter iterations, False otherwise
         """
 
         print()
@@ -675,7 +709,7 @@ class RMETC:
 
         self.set_optimizer(qp_solver=qp_solver, 
                           wt_lb_scheduler=wt_lb_scheduler, 
-                          line_search_device=line_search_device, AAdepth=AAdepth, nb_scheduler=nb_scheduler)
+                          line_search_device=line_search_device, AA_depth=AA_depth, nb_scheduler=nb_scheduler)
         
         self._setup(V, init_M, init_w, regularize_data, translate_init)
         self.maxiter = maxiter
@@ -686,33 +720,6 @@ class RMETC:
 
     
     def _step(self, maxiter, Mtol, wtol, ftol, update_weights, warmup, AAtol, monit):
-        """_summary_
-
-        Parameters
-        ----------
-        maxiter : _type_
-            _description_
-        Mtol : _type_
-            _description_
-        wtol : _type_
-            _description_
-        ftol : _type_
-            _description_
-        update_weights : _type_
-            _description_
-        warmup : _type_
-            _description_
-        AAtol : _type_
-            _description_
-        monit : _type_
-            _description_
-
-        Returns
-        -------
-        _type_
-            _description_
-        """
-
         self.Mtol = Mtol
         self.wtol = wtol
         self.ftol = ftol
@@ -829,28 +836,45 @@ class RMETC:
     
 
     def get_soln(self):
+        """Extract the solution computed by solve_mean_weight
+
+        Returns
+        -------
+        M : (n, r) array
+        w : (r,) array
+            The solved mean matrix and weights
+        """
+        
         M = self.M / self.gamma - self.delta 
         return M, self.w
     
 
     def get_data(self):
+        """Undo the regularization map on the data to recover the original dataset
+
+        Returns
+        -------
+        V : (n, p) array
+            The untranslated data matrix
+        """
+        
         return self.V / self.gamma - self.delta
     
 
     def solve_std(self, qp_solver, reg = None):
-        """Solve standard deviation...
+        """Solve standard deviation after solving the means and weights
 
         Parameters
         ----------
-        qp_solver : _type_
-            _description_
-        reg : _type_, optional
-            _description_, by default None
+        qp_solver : Callable
+            Same as qp_solver in set_optimizer.
+        reg : float, optional
+            Regularization constant to prevent negative standard deviation, if not None, will impose std >= reg, by default None
 
         Returns
         -------
-        _type_
-            _description_
+        std : (n, r) array
+            The standard deviation vectors, the kth column is the standard deviation for class k
         """
 
         result = np.zeros((self.n, self.r))
@@ -897,20 +921,25 @@ class RMETC:
 
     
     def solve_gen_mean(self, fn, k = 1, *args, **kwargs):
-        """Solve general mean...
+        """Solve general mean E g(X)
 
         Parameters
         ----------
-        fn : function
-            _description_
+        fn : Callable
+            Encodes a list of k coordinatewise functions whose expectation is asked.
+            Takes in a (p,) vector x, and returns (p, k) array (or (p,) if k = 1), where 
+            each column corresponds to the output of a coordinatewise function acting on x
         k : int, optional
-            _description_, by default 1
+            The number of the coordinatewise functions encoded in fn (i.e. shape[1] of fn(x)), by default 1
+        *args, **kwargs : 
+            Additional args put into fn
 
         Returns
         -------
-        _type_
-            _description_
+        result : (k, n, r) array, (n, r) if k = 1
+            The general means, result[i] is the (n, r) matrix whose columns are the expectation if the ith function on mixture classes
         """
+        
         temp = self.fact_tau.copy()
         self.fact_tau[:-1] = self.fact_tau[1:]
         self.fact_tau[-1] = 0
