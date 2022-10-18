@@ -74,7 +74,7 @@ if test == 'gamma':
 
 # true second moment, moment generating function at 0.5, -0.5
 # NOTE that mgf at 0.5 or -0.5 may NOT exist for distributions like Gamma. 
-# Thus the computed result is subject to a large error.
+# In such cases, the computed result is subject to a large error.
 # Here we use Gaussian distributions as an illustration for mgf calculation
 
 M2 = np.zeros((n, r))
