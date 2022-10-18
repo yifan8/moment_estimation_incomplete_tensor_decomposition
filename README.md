@@ -1,5 +1,5 @@
 # About
-This is an implementation of the algorithms in Moment Estimation for Nonparametric Mixture Models through Implicit Tensor Decomposition by Yifan Zhang and Joe Kileel. The name (METC) stands for Moment Estimation through Tensor Completion.
+This is an implementation of the algorithms in <ins>Moment Estimation for Nonparametric Mixture Models through Implicit Tensor Decomposition<\ins> by Yifan Zhang and Joe Kileel. The name (METC) stands for Moment Estimation through Tensor Completion.
 
 ## Required Python Package:
 * Numpy
