@@ -3,6 +3,10 @@ The cleaned code for RMETC (to be edited)
 
 An outline of the API is provided below. For detailed usage, please refer to the docstrings in the code. A demo can be found in demo.py.
 
+## Required Python Package:
+* Numpy
+* Scipy
+
 ## API:
 
 ### solve_mean_weight
