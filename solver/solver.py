@@ -63,7 +63,7 @@ class RMETC:
                 for i in d:
                     self.tau[i-1] = 1
         else:
-            # tau is given, d is negelected
+            # tau is given, d is neglected
             self.prep_tau = False
             i = len(tau)
             while tau[i-1] == 0:
