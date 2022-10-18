@@ -34,7 +34,7 @@ class RMETC:
         tau : array, optional
             The weights on costs of different orders. If order k is not used, put 0 at tau[k-1]. 
             E.g., [1, 0, 2, 3] will use weights 1, 2, 3 for order 1, 3, 4, and order 5 is not used.
-            If only tau is not given, d = where(tau != 0) is used. 
+            If only tau is given, d = where(tau != 0) is used. 
             If None, then the normalized weights (n-i)! / n! for order i is used. By default None. 
         """
 
