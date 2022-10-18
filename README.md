@@ -6,7 +6,7 @@ The cleaned code for RMETC (to be edited)
 * Scipy
 
 ## API:
-An outline of the API is provided below. For detailed usage, please refer to the docstrings in the code. A demo can be found in demo.py.
+An outline of the API is provided below. For details, please refer to the docstrings in the main code (./solver/solver.py). A demo can be found in demo.py (requires additional packages to run).
 
 ### solve_mean_weight
 Solve the means and weights using the $\text{ALS}^{++}$ algorithm.
