@@ -241,6 +241,7 @@ class RMETC:
             self.dfhist = np.zeros((self.n * self.r + self.r, self.m))
             self.dxhist = np.zeros((self.n * self.r + self.r, self.m))
             self.firstAAcall = True
+            self.cursor = 0
     
     
     def norm_tau_weights(self, d = None):
@@ -509,7 +510,7 @@ class RMETC:
         if self.tau[0] != 0:
             self.wLHS += self.tau[0]
             if not self.centered_data:
-                self.wRHS += self.tau[0] * np.outer(np.ones(self.r), self.vmean[idx] + self.delta[idx])
+                rhs += self.tau[0] * np.outer(np.ones(self.r), self.vmean[idx] + self.delta[idx])
         
         soln = (la.solve(self.wLHS, rhs, assume_a = 'sym').reshape(self.r, -1) / self.w.reshape(-1, 1)).T
         soln = np.where(soln > self.Mub[idx], self.Mub[idx], np.where(soln < self.Mlb[idx], self.Mlb[idx], soln))
@@ -714,6 +715,8 @@ class RMETC:
                           wt_lb_scheduler=wt_lb_scheduler, 
                           line_search_device=line_search_device, AA_depth=AA_depth, nb_scheduler=nb_scheduler)
         
+        if len(init_w) < 3:
+            regularize_data = False 
         self._setup(V, init_M, init_w, regularize_data, translate_init)
         self.maxiter = maxiter
         
@@ -886,7 +889,7 @@ class RMETC:
         self.fact_tau[-1] = 0
             
         if reg is not None:
-            lb_temp = (self.w) * (self.gamma**2 * reg**2 + self.M**2)
+            lb_temp = (self.w.reshape(-1, 1)) * (self.gamma**2 * reg**2 + self.M**2)
         else:
             lb_temp = None
             
