@@ -6,7 +6,7 @@ This is an implementation of the algorithms in <ins>Moment Estimation for Nonpar
 * Scipy
 
 ## API:
-An outline of the API is provided below. For details, please refer to the docstrings in the main code (./solver/solver.py). A demo can be found in ./demo.py (requires additional packages to run).
+An outline of the API is provided below. For details, please refer to the docstrings in the main code (./solver/MEITD.py). A demo can be found in ./demo.py (requires additional packages to run).
 
 ### solve_mean_weight
 Solve the means and weights using the $\text{ALS}^{++}$ algorithm.
