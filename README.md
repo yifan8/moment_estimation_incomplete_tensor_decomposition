@@ -1,5 +1,5 @@
 # About
-This is an implementation of the algorithms in <ins>Moment Estimation for Nonparametric Mixture Models through Implicit Tensor Decomposition</ins> by Yifan Zhang and Joe Kileel. The name (METC) stands for Moment Estimation through Tensor Completion.
+This is an implementation of the algorithms in <ins>Moment Estimation for Nonparametric Mixture Models through Implicit Tensor Decomposition</ins> by Yifan Zhang and Joe Kileel. The name (MEITD) stands for Moment Estimation through Incomplete Tensor Decomposition.
 
 ## Required Python Package:
 * Numpy
@@ -37,3 +37,6 @@ Config subroutine solvers like quadratic programming or line search used in the 
 
 ### norm_tau_weights
 Compute the normalized $\tau$ weights $\tau_i = \frac{(n-i)!}{n!}$.
+
+## Disclaimer
+This code serves to illustrate the idea presented in the aforementioned paper. Limited effort is made to safeguard the code against uncommon/malicious inputs.
