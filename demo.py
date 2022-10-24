@@ -1,6 +1,4 @@
-## test RMETC
-
-from solver.solver import RMETC
+from solver.MEITD import MEITD
 from util import sample_gauss, sample_poisson, sample_exp, sample_bernoulli, sample_gamma, match
 
 import numpy as np
@@ -16,7 +14,7 @@ from scipy.stats import multivariate_normal as normal
 np.set_printoptions(precision = 6, suppress=True)
 
 
-# basic dimensionalities
+# basic dimensionalities, r > 1 is required
 n = 30
 r = 18
 p = 20000
@@ -74,7 +72,7 @@ if test == 'gamma':
 
 # true second moment, moment generating function at 0.5, -0.5
 # NOTE that mgf at 0.5 or -0.5 may NOT exist for distributions like Gamma. 
-# In such cases, the computed result is subject to a large error.
+# In such cases, the result is subject to a large error since LLN does not apply.
 # Here we use Gaussian distributions as an illustration for mgf calculation
 
 M2 = np.zeros((n, r))
@@ -93,6 +91,7 @@ for i in range(r):
 if init_seed is not None:
     rand.seed(init_seed)
 
+# if r = 1, A0 MUST be reshaped to (n, 1)
 A0 = normal(cov = np.eye(n)).rvs(r).T
 w0 = np.ones(r) / r 
 
@@ -104,14 +103,14 @@ def qp_solver(b, W, lb):
 def std_solver(b, W, lb = None):
     return solve_ls(np.eye(r), b, lb = lb, W = W, solver = 'quadprog')
 
-def wt_scheduler(METC):
-    return 0.1 / METC.r
+def wt_scheduler(meitd):
+    return 0.1 / meitd.r
 
-def nb_scheduler(METC):
-    return -1 if not METC.warmup else METC.n // 2
+def nb_scheduler(meitd):
+    return -1 if not meitd.warmup else meitd.n // 2
 
 def linsch(f, jac, x0, a, amax, fx0 = None, dfx0 = None):
-    soln = line_search(f, jac, x0, a, amax, gfk = dfx0, old_fval = fx0)
+    soln = line_search(f, jac, x0, a, gfk = dfx0, old_fval = fx0, amax = amax)
     if soln[0] is None:
         return x0
     else:
@@ -119,7 +118,7 @@ def linsch(f, jac, x0, a, amax, fx0 = None, dfx0 = None):
 
 
 # initialize solver
-solver = RMETC(d)
+solver = MEITD(d)
 solver.set_optimizer(qp_solver = qp_solver, wt_lb_scheduler = wt_scheduler, 
                      nb_scheduler = nb_scheduler, line_search_device = linsch)
 

@@ -10,22 +10,22 @@ from numpy.random import seed, permutation as perm
 import warnings
 
 
-class RMETC:
+class MEITD:
     MAX_D = len(COEF.keys())
     
     
     @staticmethod
-    def _default_wlb_sched(METC):
-        return 0.1 / METC.r
+    def _default_wlb_sched(meitd):
+        return 0.1 / meitd.r
     
     
     @staticmethod
-    def _default_Nb_sched(METC):
+    def _default_Nb_sched(meitd):
         return -1
 
 
     def __init__(self, d = None, tau = None):
-        """Initialize METC instance, at least one of d and tau must be given. If both are given, then d is neglected.
+        """Initialize meitd instance, at least one of d and tau must be given. If both are given, then d is neglected.
         
         Parameters
         ----------
@@ -138,10 +138,10 @@ class RMETC:
         wt_lb_scheduler : Callable, optional
             Assign a lower bound on the weights for current step, syntax 
             
-            >> lb = wt_lb_scheduler(METC)
+            >> lb = wt_lb_scheduler(meitd)
             
             returns the current weight lower bound (scalar). 
-            Can access METC.niter for the current iteration count, amoung others.
+            Can access meitd.niter for the current iteration count, amoung others.
             If None is given when weight update is called, will use the default one (= 0.1/r), by default None
             
         line_search_device : Callable, optional
@@ -158,10 +158,10 @@ class RMETC:
         nb_scheduler : Callable, optional
             Assign the number of blocks to be used in the mean update ALS, syntax 
             
-            >> nb = nb_scheduler(METC)
+            >> nb = nb_scheduler(meitd)
             
             returns the requested number of blocks (scalar). 
-            Can access METC.niter and METC.warmup for the current iteration count and check if the program is in the warmup stage.
+            Can access meitd.niter and meitd.warmup for the current iteration count and check if the program is in the warmup stage.
             If None is given when mean update is called, will use the default one (block size = 1 at all time), by default None
             
         AA_depth : int, optional
@@ -182,6 +182,14 @@ class RMETC:
         
 
     def _setup(self, V, M0, w0, regularize_data, translate_init):
+        if M0.ndim != 2:
+            raise ValueError('The initial mean init_M must have shape (n, r)')
+        if V.ndim != 2:
+            raise ValueError('The data V must have shape (n, p)')
+        if V.shape[0] != M0.shape[0]:
+            raise ValueError(f'The shape of data {V.shape} and the shape of initial mean init_M {M0.shape} must be compatible')
+        if w0.shape[0] != M0.shape[1]:
+            raise ValueError(f'The shape of initial weight init_w {w0.shape} and the shape of initial mean init_M {M0.shape} must be compatible')
         self.n, self.r = M0.shape
         self.M = M0.copy()
         self.w = w0.copy()
@@ -204,8 +212,8 @@ class RMETC:
             self.V *= self.gamma
             self.centered_data = True
         else:
-            self.gamma = np.ones(self.n) 
-            self.delta = np.zeros(self.n)  
+            self.gamma = np.ones((self.n, 1)) 
+            self.delta = np.zeros((self.n, 1))  
             self.centered_data = False     
 
         if translate_init == 'center':
@@ -889,7 +897,7 @@ class RMETC:
         self.fact_tau[-1] = 0
             
         if reg is not None:
-            lb_temp = (self.w.reshape(-1, 1)) * (self.gamma**2 * reg**2 + self.M**2)
+            lb_temp = self.w * (self.gamma**2 * reg**2 + self.M**2)
         else:
             lb_temp = None
             
