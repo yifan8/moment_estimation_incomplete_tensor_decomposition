@@ -1,5 +1,5 @@
 # About
-This is an implementation of the algorithms in <ins>Moment Estimation for Nonparametric Mixture Models through Implicit Tensor Decomposition</ins> by Yifan Zhang and Joe Kileel. The name MEITD stands for Moment Estimation through Incomplete Tensor Decomposition.
+This is an implementation of the algorithms in [<ins>Moment Estimation for Nonparametric Mixture Models through Implicit Tensor Decomposition</ins>](https://arxiv.org/abs/2210.14386) by Yifan Zhang and Joe Kileel. The name MEITD stands for Moment Estimation through Incomplete Tensor Decomposition.
 
 ## Required Python Package:
 * Numpy
